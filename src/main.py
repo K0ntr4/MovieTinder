@@ -10,6 +10,7 @@ class MovieTinder(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.requests = None
         self.id = None
         self.requests_list = None
         self.email_input = None
@@ -223,21 +224,32 @@ class MovieTinder(QMainWindow):
     def add_user_by_email(self):
         """Add another user."""
         email = self.email_input.text()
-        # Add logic to add another user
+        if email == '':
+            QMessageBox.warning(self, "Request", "Email can't be empty")
+            return
+        if not db.create_connection_request(self.id, email):
+            QMessageBox.information(self, "Request", f"Failed to sent Request to: {email}")
+            return
+        QMessageBox.information(self, "Request", f"Sent Request to: {email}")
+        self.email_input.clear()
 
     def accept_request(self):
         """Accept the selected email from the requests list."""
         selected_items = self.requests_list.selectedItems()
-        if selected_items:
-            email = selected_items[0].text()
-            QMessageBox.information(self, "Email Accepted", f"Accepted Request: {email}")
-        else:
+        if not selected_items:
             QMessageBox.warning(self, "No Selection", "No email selected")
+            return
+        for item in selected_items:
+            db.accept_connection(self.requests[item.text()])
+            QMessageBox.information(self, "Request Accepted", f"Accepted Request: {item.text()}")
+        self.refresh_requests()
 
     def refresh_requests(self):
         """Refresh the requests list (clear and reload, if necessary)."""
         self.requests_list.clear()
-        # Add logic to reload the list
+        requests = db.get_users_pending_requests(self.id)
+        self.requests = {value: key for (key, value) in requests.items()}
+        self.requests_list.addItems(list(requests.values()))
 
 
 if __name__ == "__main__":

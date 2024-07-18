@@ -23,7 +23,8 @@ class Database:
             host=data['Host'],
             user=data['Username'],
             password=data['Password'],
-            database=data['Database']
+            database=data['Database'],
+            autocommit=True
         )
 
     def __save(self, table, columns, values, row_id_to_update=-1):
@@ -62,7 +63,7 @@ class Database:
 
         cur = self.connection.cursor()
         cur.execute(sql_command, values + [row_id])
-        self.connection.commit()
+        # self.connection.commit()
         return True
 
     def __insert(self, table, columns, values):
@@ -86,7 +87,7 @@ class Database:
             cur.execute(sql_command, values)
         except mysql.connector.errors.IntegrityError:
             return False
-        self.connection.commit()
+        # self.connection.commit()
         return True
 
     def try_login(self, email, password):
@@ -123,48 +124,91 @@ class Database:
         """
         return self.__insert('users', ['email', 'password'], [email, password])
 
-    def is_connection_in_usage(self, id_sender, id_reciever):
-        sql_command = "SELECT id FROM connections WHERE (user1=%s AND user2=%s) OR (user1=%s AND user2=%s)"
-        cur = self.connection.cursor()
-        cur.execute(sql_command, (id_sender, id_reciever, id_reciever, id_sender))
-        res = cur.fetchone()
-        if res is not None:
-            return True
-        return False
+    def is_connection_in_usage(self, id_sender, id_receiver):
+        """
+        Check if a connection between the sender and receiver already exists.
 
-    def create_connection_request(self, userid1, email_reciever):
+        Args:
+            id_sender (int): The ID of the sender.
+            id_receiver (int): The ID of the receiver.
+
+        Returns:
+            bool: True if a connection exists, False otherwise.
+        """
+        sql_command = """
+            SELECT id 
+            FROM connections 
+            WHERE (user1=%s AND user2=%s) OR (user1=%s AND user2=%s)
+        """
+        cursor = self.connection.cursor()
+        cursor.execute(sql_command, (id_sender, id_receiver, id_receiver, id_sender))
+        result = cursor.fetchone()
+        return result is not None
+
+    def create_connection_request(self, userid1, email_receiver):
+        """
+        Create a connection request from userid1 to the user with email_receiver.
+
+        Args:
+            userid1 (int): The ID of the sender.
+            email_receiver (str): The email of the receiver.
+
+        Returns:
+            bool: True if the connection request was created, False otherwise.
+        """
+        # Retrieve the ID of the receiver based on their email
         sql_command = "SELECT id FROM users WHERE email = %s"
-        cur = self.connection.cursor()
-        cur.execute(sql_command, (email_reciever,))
-        res = cur.fetchone()
-        
-        if res is None:
-            return False
-        if self.is_connection_in_usage(userid1, res[0]):
+        cursor = self.connection.cursor()
+        cursor.execute(sql_command, (email_receiver,))
+        result = cursor.fetchone()
+
+        if result is None or result[0] == userid1:
             return False
 
-        return self.__save('connections', ['user1', 'user2'], [userid1, res[0]])
-
-    def get_users_pending_requests(self, id):
-        sql_command= (
-            'SELECT '
-            'connections.id AS connectionid, '
-            'users.email AS usermail '
-            'FROM connections '
-            'JOIN users ON connections.user1=users.id '
-            'WHERE connections.user2=%s AND active=false'
-        )
-
-        cur = self.connection.cursor()
-        cur.execute(sql_command, (id,))
-        res = cur.fetchall()
-
-        if res is None:
+        # Check if the connection already exists
+        if self.is_connection_in_usage(userid1, result[0]):
             return False
-        
-        dic = dict(res)
-        return dic
 
-    def accept_connection(self, id):
-        return self.__save('connections', ['active'], [True], id)
-    
+        # Save the new connection request
+        return self.__save('connections', ['user1', 'user2'], [userid1, result[0]])
+
+    def get_users_pending_requests(self, user_id):
+        """
+        Retrieve all pending connection requests for a user.
+
+        Args:
+            user_id (int): The ID of the user.
+
+        Returns:
+            dict: A dictionary of connection IDs and user emails for pending requests.
+        """
+        sql_command = """
+            SELECT 
+                connections.id AS connectionid, 
+                users.email AS usermail 
+            FROM connections 
+            JOIN users ON connections.user1 = users.id 
+            WHERE connections.user2 = %s AND active = FALSE
+        """
+        cursor = self.connection.cursor()
+        cursor.execute(sql_command, (user_id,))
+        result = cursor.fetchall()
+
+        if not result:
+            return {}
+
+        # Convert the result to a dictionary
+        pending_requests = {row[0]: row[1] for row in result}
+        return pending_requests
+
+    def accept_connection(self, connection_id):
+        """
+        Accept a connection request.
+
+        Args:
+            connection_id (int): The ID of the connection to be accepted.
+
+        Returns:
+            bool: True if the connection was successfully accepted, False otherwise.
+        """
+        return self.__save('connections', ['active'], [True], connection_id)

@@ -1,6 +1,5 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, \
-    QMessageBox, QStackedLayout
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QMessageBox, QStackedLayout
 from PySide6.QtCore import QFile, QTextStream
 
 
@@ -8,28 +7,30 @@ class LoginSignUpApp(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Login and Sign Up")
+        self.setWindowTitle("MovieTinder")
 
         self.initUI()
 
     def initUI(self):
+        """Initialize the main UI components."""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        # Main layout
+        # Main stacked layout to switch between login and sign up views
         self.main_layout = QStackedLayout()
 
         # Create login and sign up widgets
         self.login_widget = self.create_login_widget()
         self.signup_widget = self.create_signup_widget()
 
-        # Add widgets to the main layout
+        # Add widgets to the main stacked layout
         self.main_layout.addWidget(self.login_widget)
         self.main_layout.addWidget(self.signup_widget)
 
-        # Set initial widget to login
+        # Set initial widget to login view
         self.main_layout.setCurrentWidget(self.login_widget)
 
+        # Set central layout
         central_layout = QVBoxLayout(central_widget)
         central_layout.addLayout(self.main_layout)
 
@@ -40,6 +41,7 @@ class LoginSignUpApp(QMainWindow):
         self.user_database = {}
 
     def create_login_widget(self):
+        """Create the login widget."""
         login_widget = QWidget()
         layout = QVBoxLayout()
 
@@ -58,12 +60,14 @@ class LoginSignUpApp(QMainWindow):
 
         login_widget.setLayout(layout)
 
+        # Connect button signals to slots
         login_button.clicked.connect(self.login)
         switch_to_signup_button.clicked.connect(self.switch_to_signup)
 
         return login_widget
 
     def create_signup_widget(self):
+        """Create the sign-up widget."""
         signup_widget = QWidget()
         layout = QVBoxLayout()
 
@@ -87,18 +91,21 @@ class LoginSignUpApp(QMainWindow):
 
         signup_widget.setLayout(layout)
 
+        # Connect button signals to slots
         signup_button.clicked.connect(self.sign_up)
         switch_to_login_button.clicked.connect(self.switch_to_login)
 
         return signup_widget
 
     def apply_stylesheet(self):
+        """Apply external CSS stylesheet to the application."""
         file = QFile("../resources/stylesheet.css")
         if file.open(QFile.ReadOnly | QFile.Text):
             stream = QTextStream(file)
             self.setStyleSheet(stream.readAll())
 
     def login(self):
+        """Attempt to log in with the provided username and password."""
         username = self.username_login.text()
         password = self.password_login.text()
 
@@ -108,6 +115,7 @@ class LoginSignUpApp(QMainWindow):
             QMessageBox.warning(self, "Login", "Login Failed")
 
     def sign_up(self):
+        """Attempt to sign up with the provided username, password, and confirmation password."""
         username = self.username_signup.text()
         password = self.password_signup.text()
         confirm_password = self.confirm_password_signup.text()
@@ -121,18 +129,22 @@ class LoginSignUpApp(QMainWindow):
             QMessageBox.information(self, "Sign Up", "Sign Up Successful")
 
     def switch_to_signup(self):
+        """Switch to the sign-up view and clear sign-up input fields."""
         self.clear_signup_fields()
         self.main_layout.setCurrentWidget(self.signup_widget)
 
     def switch_to_login(self):
+        """Switch to the login view and clear login input fields."""
         self.clear_login_fields()
         self.main_layout.setCurrentWidget(self.login_widget)
 
     def clear_login_fields(self):
+        """Clear input fields in the login widget."""
         self.username_login.clear()
         self.password_login.clear()
 
     def clear_signup_fields(self):
+        """Clear input fields in the sign-up widget."""
         self.username_signup.clear()
         self.password_signup.clear()
         self.confirm_password_signup.clear()

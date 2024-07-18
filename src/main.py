@@ -192,7 +192,7 @@ class MovieTinder(QMainWindow):
         if password != confirm_password:
             QMessageBox.warning(self, "Sign Up", "Passwords do not match")
             return
-        if not db.signup(email, password):
+        if not db.sign_up(email, password):
             QMessageBox.warning(self, "Sign Up", "email already exists")
             return
         else:

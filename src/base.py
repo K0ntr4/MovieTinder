@@ -2,7 +2,7 @@ import hashlib
 import json
 
 def getdbconfig():
-    file = open('dbconfig.json')
+    file = open('../config/dbconfig.json')
     data = json.load(file)
     file.close()
 

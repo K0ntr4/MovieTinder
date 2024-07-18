@@ -1,4 +1,6 @@
 import sys
+from base import hash_password
+from database import Database
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QMessageBox, \
     QStackedLayout, QListWidget, QHBoxLayout
 from PySide6.QtCore import QFile, QTextStream
@@ -8,15 +10,15 @@ class MovieTinder(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.id = None
         self.requests_list = None
         self.email_input = None
         self.confirm_password_signup = None
         self.password_signup = None
-        self.username_signup = None
+        self.email_signup = None
         self.password_login = None
-        self.username_login = None
+        self.email_login = None
         self.main_page_widget = None
-        self.user_database = None
         self.signup_widget = None
         self.login_widget = None
         self.main_layout = None
@@ -52,23 +54,20 @@ class MovieTinder(QMainWindow):
         # Apply the stylesheet
         self.apply_stylesheet()
 
-        # Placeholder for user database
-        self.user_database = {}
-
     def create_login_widget(self):
         """Create the login widget."""
         login_widget = QWidget()
         layout = QVBoxLayout()
 
-        self.username_login = QLineEdit()
-        self.username_login.setPlaceholderText("Username")
+        self.email_login = QLineEdit()
+        self.email_login.setPlaceholderText("Email")
         self.password_login = QLineEdit()
         self.password_login.setPlaceholderText("Password")
         self.password_login.setEchoMode(QLineEdit.Password)
         login_button = QPushButton("Login")
         switch_to_signup_button = QPushButton("Sign Up Instead")
 
-        layout.addWidget(self.username_login)
+        layout.addWidget(self.email_login)
         layout.addWidget(self.password_login)
         layout.addWidget(login_button)
         layout.addWidget(switch_to_signup_button)
@@ -86,8 +85,8 @@ class MovieTinder(QMainWindow):
         signup_widget = QWidget()
         layout = QVBoxLayout()
 
-        self.username_signup = QLineEdit()
-        self.username_signup.setPlaceholderText("Username")
+        self.email_signup = QLineEdit()
+        self.email_signup.setPlaceholderText("Email")
         self.password_signup = QLineEdit()
         self.password_signup.setPlaceholderText("Password")
         self.password_signup.setEchoMode(QLineEdit.Password)
@@ -98,7 +97,7 @@ class MovieTinder(QMainWindow):
         signup_button = QPushButton("Sign Up")
         switch_to_login_button = QPushButton("Back to Login")
 
-        layout.addWidget(self.username_signup)
+        layout.addWidget(self.email_signup)
         layout.addWidget(self.password_signup)
         layout.addWidget(self.confirm_password_signup)
         layout.addWidget(signup_button)
@@ -141,12 +140,9 @@ class MovieTinder(QMainWindow):
         main_page_widget.setLayout(layout)
 
         # Connect button signals to slots
-        add_button.clicked.connect(self.add_user_by_email())
-        accept_button.clicked.connect(self.accept_request())
+        add_button.clicked.connect(self.add_user_by_email)
+        accept_button.clicked.connect(self.accept_request)
         refresh_button.clicked.connect(self.refresh_requests)
-
-        # Display requests
-        self.refresh_requests()
 
         return main_page_widget
 
@@ -158,28 +154,48 @@ class MovieTinder(QMainWindow):
             self.setStyleSheet(stream.readAll())
 
     def login(self):
-        """Attempt to log in with the provided username and password."""
-        username = self.username_login.text()
-        password = self.password_login.text()
+        """Attempt to log in with the provided email and password."""
+        global db
 
-        if username in self.user_database and self.user_database[username] == password:
+        email = self.email_login.text()
+        if email == '':
+            QMessageBox.warning(self, "Login", "Email can't be empty")
+            return
+        if self.password_login.text() == '':
+            QMessageBox.warning(self, "Login", "Password can't be empty")
+            return
+        password = hash_password(self.password_login.text())
+
+        self.id = db.try_login(email, password)
+
+        if self.id == -1:
+            QMessageBox.warning(self, "Login", "Login Failed")
+            return
+        else:
             QMessageBox.information(self, "Login", "Login Successful")
             self.main_layout.setCurrentWidget(self.main_page_widget)
-        else:
-            QMessageBox.warning(self, "Login", "Login Failed")
+            # Display requests
+            self.refresh_requests()
 
     def sign_up(self):
-        """Attempt to sign up with the provided username, password, and confirmation password."""
-        username = self.username_signup.text()
-        password = self.password_signup.text()
-        confirm_password = self.confirm_password_signup.text()
+        """Attempt to sign up with the provided email, password, and confirmation password."""
+        email = self.email_signup.text()
+        if email == '':
+            QMessageBox.warning(self, "Sign Up", "Email can't be empty")
+            return
+        if self.password_signup.text() == '':
+            QMessageBox.warning(self, "Sign Up", "Password can't be empty")
+            return
+        password = hash_password(self.password_signup.text())
+        confirm_password = hash_password(self.confirm_password_signup.text())
 
-        if username in self.user_database:
-            QMessageBox.warning(self, "Sign Up", "Username already exists")
-        elif password != confirm_password:
+        if password != confirm_password:
             QMessageBox.warning(self, "Sign Up", "Passwords do not match")
+            return
+        if not db.signup(email, password):
+            QMessageBox.warning(self, "Sign Up", "email already exists")
+            return
         else:
-            self.user_database[username] = password
             QMessageBox.information(self, "Sign Up", "Sign Up Successful")
             self.switch_to_login()
 
@@ -195,12 +211,12 @@ class MovieTinder(QMainWindow):
 
     def clear_login_fields(self):
         """Clear input fields in the login widget."""
-        self.username_login.clear()
+        self.email_login.clear()
         self.password_login.clear()
 
     def clear_signup_fields(self):
         """Clear input fields in the sign-up widget."""
-        self.username_signup.clear()
+        self.email_signup.clear()
         self.password_signup.clear()
         self.confirm_password_signup.clear()
 
@@ -225,6 +241,7 @@ class MovieTinder(QMainWindow):
 
 
 if __name__ == "__main__":
+    db = Database()
     app = QApplication(sys.argv)
     window = MovieTinder()
     window.show()

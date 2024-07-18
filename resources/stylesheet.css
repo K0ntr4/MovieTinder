@@ -1,0 +1,41 @@
+.QWidget {
+  background-color: #222831;
+}
+
+.QMessageBox {
+  background-color: #222831;
+}
+
+.QLabel {
+  color: #00ADB5;
+  background-color: #222831;
+}
+
+.QLineEdit {
+  color: #EEEEEE;
+  border: none;
+  border-bottom: 2px solid #00ADB5;
+  padding-bottom: 2px;
+  background: #222831;
+}
+
+.QPushButton {
+  border: 0;
+  border-radius: 5px;
+  color: #00ADB5;
+  background-color: #222831;
+}
+.QPushButton:hover {
+  border: 2px solid #393E46;
+  background-color: #393E46;
+}
+.QPushButton:pressed {
+  border: 2px solid #00ADB5;
+  background-color: #00ADB5;
+}
+.QPushButton:disabled {
+  color: #222831;
+  background-color: #222831;
+}
+
+/*# sourceMappingURL=form.css.map */

@@ -12,7 +12,7 @@ def get_db_config():
     Returns:
         dict: Database configuration parameters.
     """
-    with open('../config/dbconfig.json', 'r') as file:
+    with open('./config/dbconfig.json', 'r') as file:
         data = json.load(file)
     return data
 

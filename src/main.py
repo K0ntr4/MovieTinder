@@ -1,6 +1,6 @@
 import sys
-from base import hash_password
-from database import Database
+from src.base import hash_password
+from src.database import Database
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QMessageBox, \
     QStackedLayout, QListWidget, QHBoxLayout
 from PySide6.QtCore import QFile, QTextStream

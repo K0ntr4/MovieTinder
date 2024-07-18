@@ -1,5 +1,5 @@
 import mysql.connector
-from base import get_db_config
+from src.base import get_db_config
 
 
 class Database:
@@ -63,6 +63,7 @@ class Database:
         cur = self.connection.cursor()
         cur.execute(sql_command, values + [row_id])
         self.connection.commit()
+        return True
 
     def __insert(self, table, columns, values):
         """
@@ -121,3 +122,49 @@ class Database:
             bool: True if sign up was successful, False otherwise.
         """
         return self.__insert('users', ['email', 'password'], [email, password])
+
+    def is_connection_in_usage(self, id_sender, id_reciever):
+        sql_command = "SELECT id FROM connections WHERE (user1=%s AND user2=%s) OR (user1=%s AND user2=%s)"
+        cur = self.connection.cursor()
+        cur.execute(sql_command, (id_sender, id_reciever, id_reciever, id_sender))
+        res = cur.fetchone()
+        if res is not None:
+            return True
+        return False
+
+    def create_connection_request(self, userid1, email_reciever):
+        sql_command = "SELECT id FROM users WHERE email = %s"
+        cur = self.connection.cursor()
+        cur.execute(sql_command, (email_reciever,))
+        res = cur.fetchone()
+        
+        if res is None:
+            return False
+        if self.is_connection_in_usage(userid1, res[0]):
+            return False
+
+        return self.__save('connections', ['user1', 'user2'], [userid1, res[0]])
+
+    def get_users_pending_requests(self, id):
+        sql_command= (
+            'SELECT '
+            'connections.id AS connectionid, '
+            'users.email AS usermail '
+            'FROM connections '
+            'JOIN users ON connections.user1=users.id '
+            'WHERE connections.user2=%s AND active=false'
+        )
+
+        cur = self.connection.cursor()
+        cur.execute(sql_command, (id,))
+        res = cur.fetchall()
+
+        if res is None:
+            return False
+        
+        dic = dict(res)
+        return dic
+
+    def accept_connection(self, id):
+        return self.__save('connections', ['active'], [True], id)
+    

@@ -4,7 +4,7 @@ Welcome to **MovieTinder** – your ultimate movie night planning companion! �
 
 Ever struggled to decide on a movie with friends? MovieTinder is here to save the day! Inspired by the swipe-based magic of Tinder, our Python desktop application makes choosing a movie as fun and easy as swiping right! 🍿
 
-##Project Origin
+## Project Origin
 This project was created during day 3 of a hackathon organized by Kevin Chromik.
 
 ## Features

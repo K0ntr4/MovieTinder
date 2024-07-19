@@ -394,3 +394,18 @@ class Database:
             ['user', 'movie', 'liked'],
             [user_id, movie_id, is_liked]
         )
+    
+    def get_user_matches(self, user1, user2):
+        sqlcommand = '''SELECT m1.movie
+                        FROM movie_user_interests m1
+                        JOIN movie_user_interests m2 ON m1.movie = m2.movie
+                        WHERE m1.user = %s
+                            AND m2.user = %s
+                            AND m1.liked = 1
+                            AND m2.liked = 1;
+                    '''
+        
+        cursor = self.connection.cursor()
+        cursor.execute(sqlcommand, (user1, user2))
+        result = cursor.fetchall()
+        return result

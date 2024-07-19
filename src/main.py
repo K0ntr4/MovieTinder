@@ -11,6 +11,9 @@ class MovieTinder(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.movie_ids = None
+        self.movies = None
+        self.movie_index = -1
         self.connections = None
         self.match_movie_genres_label = None
         self.match_movie_release_date_label = None
@@ -352,6 +355,7 @@ class MovieTinder(QMainWindow):
     def switch_to_swiping(self):
         """Switch to the swiping page view."""
         self.main_layout.setCurrentWidget(self.swiping_widget)
+        self.display_next_movie()
 
     def switch_to_matches(self):
         """Switch to the matches page view."""
@@ -407,20 +411,27 @@ class MovieTinder(QMainWindow):
 
     def like_movie(self):
         """Handle liking a movie."""
-        # Placeholder implementation
+        db.add_user_interest(self.id, self.movie_ids[self.movie_index], True)
         self.display_next_movie()
 
     def dislike_movie(self):
         """Handle disliking a movie."""
-        # Placeholder implementation
+        db.add_user_interest(self.id, self.movie_ids[self.movie_index], False)
         self.display_next_movie()
 
     def display_next_movie(self):
         """Display the next movie (placeholder)."""
-        self.movie_title_label.setText("Next Movie Title Placeholder")
-        self.movie_cover_label.setPixmap(QPixmap("../resources/next_placeholder_image.png"))
-        self.movie_release_date_label.setText("Release Date: Next Placeholder")
-        self.movie_genres_label.setText("Genres: Next Placeholder")
+        self.movie_index = self.movie_index + 1
+        if self.movies is None or len(self.movies) < self.movie_index:
+            movies = db.get_movies_for_user(self.id)
+            self.movies = list(movies.values())
+            self.movie_ids = list(movies.keys())
+            self.movie_index = 0
+
+        self.movie_title_label.setText(self.movies[0]["title"])
+        self.movie_cover_label.setPixmap(QPixmap(self.movies[0]["picture"]))
+        self.movie_release_date_label.setText(self.movies[0]["release_date"])
+        self.movie_genres_label.setText(self.movies[0]["genres"])
 
     def view_match(self):
         """Handle viewing a match."""

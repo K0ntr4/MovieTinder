@@ -1,6 +1,6 @@
 import mysql.connector
-from src.base import get_db_config
-from src.api import ApiWrapper
+from base import get_db_config
+from api import ApiWrapper
 
 api = ApiWrapper()
 
@@ -217,7 +217,7 @@ class Database:
         """
         return self.__save('connections', ['active'], [True], connection_id)
 
-    def add_movie_genre_relation(self, movies, last_row_id):
+    def add_movie_genre_relation(self, movies, last_row_id, row_count):
         """
         Add the relationship between movies and genres in the movie_x_genres table.
 
@@ -255,7 +255,7 @@ class Database:
         values = []
         for i, movie in enumerate(movies):
             for genre in movie["genre_ids"]:
-                values.append((last_row_id - len(movies) + i + 1, result[genre]))
+                values.append((last_row_id - row_count + i + 1, result[genre]))
 
         cursor.executemany(sql_command, values)
         self.connection.commit()
@@ -309,13 +309,14 @@ class Database:
         cursor.executemany(sql_command, values)
         last_row_id = cursor.lastrowid
         self.connection.commit()
+        row_count = cursor.rowcount
 
         self.fetch_movie_genres()
-        self.add_movie_genre_relation(movies, last_row_id)
+        self.add_movie_genre_relation(movies, last_row_id, row_count)
 
         return True
 
-    def get_movies_for_user(self, user_id):
+    def get_movies_for_user(self, user_id, recursive = False):
         """
         Retrieve movies for a user that the user has not interacted with yet.
 
@@ -359,8 +360,10 @@ class Database:
         cursor.execute(sql_command, (user_id,))
         result = cursor.fetchall()
 
-        if not result:
+        if not recursive and not result:
             self.fetch_new_movies()
+            return self.get_movies_for_user(user_id, True)
+        elif not result:
             return None
 
         # If less than 5 movies are fetched, fetch more movies from the api

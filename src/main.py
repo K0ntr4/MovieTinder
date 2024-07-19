@@ -1,7 +1,7 @@
 import sys
 from datetime import datetime
-from src.base import hash_password
-from src.database import Database
+from base import hash_password
+from database import Database
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QMessageBox, \
     QStackedLayout, QListWidget, QHBoxLayout, QLabel
 from PySide6.QtGui import QPixmap

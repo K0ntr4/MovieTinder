@@ -12,6 +12,10 @@ class MovieTinder(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.match_ids = None
+        self.match_index = -1
+        self.matches = None
+        self.selected_connection = None
         self.movie_ids = None
         self.movies = None
         self.movie_index = -1
@@ -356,11 +360,13 @@ class MovieTinder(QMainWindow):
     def switch_to_swiping(self):
         """Switch to the swiping page view."""
         self.main_layout.setCurrentWidget(self.swiping_widget)
+        self.movie_index -= 1
         self.display_next_movie()
 
     def switch_to_matches(self):
         """Switch to the matches page view."""
         self.main_layout.setCurrentWidget(self.matches_widget)
+        self.matches_list.clear()
         connections = db.get_users_connections(self.id)
         self.connections = {value: key for (key, value) in connections.items()}
         self.matches_list.addItems(list(connections.values()))
@@ -368,6 +374,8 @@ class MovieTinder(QMainWindow):
     def switch_to_match_details(self):
         """Switch to the match details view."""
         self.main_layout.setCurrentWidget(self.match_details_widget)
+        self.match_index = -1
+        self.next_match()
 
     def clear_login_fields(self):
         """Clear input fields in the login widget."""
@@ -425,10 +433,13 @@ class MovieTinder(QMainWindow):
         self.movie_index += 1
         if self.movies is None or len(self.movies) <= self.movie_index:
             movies = db.get_movies_for_user(self.id)
+            if movies is None:
+                QMessageBox.warning(self, "Swiping", "Error fetching movies, please try again later")
+                self.switch_to_main_page()
+                return
             self.movies = list(movies.values())
             self.movie_ids = list(movies.keys())
             self.movie_index = 0
-
         self.movie_title_label.setText(self.movies[self.movie_index]["title"])
 
         # Load the image to QPixmap from blob
@@ -446,24 +457,54 @@ class MovieTinder(QMainWindow):
 
     def view_match(self):
         """Handle viewing a match."""
-        # Placeholder implementation
+        selected_items = self.matches_list.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "No Selection", "No connection selected")
+            return
+
+        self.selected_connection = self.connections[selected_items[0].text()]
+        matches = db.get_user_matches(self.id, self.selected_connection, 0)
+        if matches is None:
+            QMessageBox.warning(self, "Matches", "No matches with this user")
+            self.switch_to_matches()
+            return
+        self.matches = list(matches.values())
+        self.match_ids = list(matches.keys())
         self.switch_to_match_details()
 
     def previous_match(self):
         """Handle showing the previous match."""
-        # Placeholder implementation
-        self.match_movie_title_label.setText("Previous Movie Title Placeholder")
-        self.match_movie_cover_label.setPixmap(QPixmap("../resources/previous_placeholder_image.png"))
-        self.match_movie_release_date_label.setText("Release Date: Previous Placeholder")
-        self.match_movie_genres_label.setText("Genres: Previous Placeholder")
+        self.match_index = max(0, self.match_index - 1)
+        self.display_match()
 
     def next_match(self):
         """Handle showing the next match."""
-        # Placeholder implementation
-        self.match_movie_title_label.setText("Next Movie Title Placeholder")
-        self.match_movie_cover_label.setPixmap(QPixmap("../resources/next_placeholder_image.png"))
-        self.match_movie_release_date_label.setText("Release Date: Next Placeholder")
-        self.match_movie_genres_label.setText("Genres: Next Placeholder")
+        self.match_index += 1
+        self.display_match()
+
+    def display_match(self):
+        """Display the next match"""
+        if len(self.matches) <= self.match_index:
+            matches = db.get_user_matches(self.id, self.selected_connection, self.match_ids[-1])
+            if matches is None:
+                QMessageBox.warning(self, "Matches", "No more Matches")
+                return
+            self.matches += list(matches.values())
+            self.match_ids = list(matches.keys())
+        self.match_movie_title_label.setText(self.matches[self.match_index]["title"])
+
+        # Load the image to QPixmap from blob
+        pixmap = QPixmap()
+        pixmap.loadFromData(QByteArray(self.matches[self.match_index]["picture"]))
+        self.match_movie_cover_label.setPixmap(pixmap)
+
+        # Format date to German date format
+        release_date = datetime.strptime(
+            str(self.matches[self.match_index]["release_date"]), "%Y-%m-%d"
+        ).strftime("%d.%m.%Y")
+        self.match_movie_release_date_label.setText(f"Release Date: {release_date}")
+
+        self.match_movie_genres_label.setText(f"Genres: {self.matches[self.match_index]['genres']}")
 
 
 if __name__ == "__main__":

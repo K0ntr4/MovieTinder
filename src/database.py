@@ -375,3 +375,7 @@ class Database:
             for row in result
         }
         return movies
+
+    def add_user_interest(self, userid, movieid, isliked):
+        return self.__save('user_interest', ['user', 'movie', 'liked'], [userid, movieid, isliked])
+    

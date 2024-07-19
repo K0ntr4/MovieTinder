@@ -283,13 +283,13 @@ class Database:
 
         return True
 
-    def fetch_new_movies(self, page=1):
+    def fetch_new_movies(self, page=345):
         """
         Fetch and store new movies from the API into the movies table,
         and update their genre relations.
 
         Args:
-            page (int, optional): The page number to fetch movies from. Defaults to 1.
+            page (int, optional): The page number to fetch movies from. Defaults to 345.
 
         Returns:
             bool: True if movies were successfully fetched and stored, False otherwise.
@@ -353,16 +353,17 @@ class Database:
                 ), 0) 
             GROUP BY 
                 m.id
-            LIMIT 20;
+            LIMIT 8;
         """
         cursor = self.connection.cursor()
         cursor.execute(sql_command, (user_id,))
         result = cursor.fetchall()
 
         if not result:
-            return {}
+            self.fetch_new_movies()
+            return None
 
-        # If less than 5 movies are fetched, fetch more movies from the previous page
+        # If less than 5 movies are fetched, fetch more movies from the api
         if len(result) < 5:
             self.fetch_new_movies(result[0][5] - 1)
 
@@ -394,18 +395,92 @@ class Database:
             ['user', 'movie', 'liked'],
             [user_id, movie_id, is_liked]
         )
-    
-    def get_user_matches(self, user1, user2):
-        sqlcommand = '''SELECT m1.movie
-                        FROM movie_user_interests m1
-                        JOIN movie_user_interests m2 ON m1.movie = m2.movie
-                        WHERE m1.user = %s
-                            AND m2.user = %s
-                            AND m1.liked = 1
-                            AND m2.liked = 1;
-                    '''
-        
+
+    def get_other_user_from_connection(self, user_id, connection_id):
+        """
+        Retrieve the user ID of the other party in a connection.
+
+        Args:
+            user_id (int): The ID of the current user.
+            connection_id (int): The ID of the connection.
+
+        Returns:
+            int: The ID of the other user in the connection, or -1 if not found.
+        """
+        sql_command = '''
+            SELECT user1, user2
+            FROM connections
+            WHERE id = %s
+        '''
         cursor = self.connection.cursor()
-        cursor.execute(sqlcommand, (user1, user2))
+        cursor.execute(sql_command, (connection_id,))
+        result = cursor.fetchone()
+
+        if result is None:
+            return -1
+
+        # Return the user ID that is not equal to the current user ID
+        return result[1] if result[0] == user_id else result[0]
+
+    def get_user_matches(self, user1, connection_id, movie_id=0):
+        """
+        Retrieve movies liked by both the current user and the other user in a connection.
+
+        Args:
+            user1 (int): The ID of the current user.
+            connection_id (int): The ID of the connection.
+            movie_id (int, optional): The minimum movie ID to start the search from. Defaults to 0.
+
+        Returns:
+            dict: A dictionary where keys are movie IDs and values are dictionaries with movie details.
+                  Returns None if no matches are found.
+        """
+        other_user = self.get_other_user_from_connection(user1, connection_id)
+
+        if other_user == -1:
+            return None
+
+        sql_command = """
+            SELECT 
+                md.id, 
+                md.title, 
+                md.release_date, 
+                md.picture, 
+                GROUP_CONCAT(g.name SEPARATOR ', ') AS genres
+            FROM 
+                movie_user_interests m1
+            JOIN 
+                movie_user_interests m2 ON m1.movie = m2.movie
+            JOIN 
+                movies md ON m1.movie = md.id
+            LEFT JOIN 
+                movie_x_genres mxg ON md.id = mxg.movie
+            LEFT JOIN 
+                movie_genres g ON mxg.genre = g.id
+            WHERE 
+                m1.user = %s
+                AND m2.user = %s
+                AND m1.liked = 1
+                AND m2.liked = 1
+                AND m1.movie > %s
+            GROUP BY 
+                md.id
+            LIMIT 20;
+        """
+        cursor = self.connection.cursor()
+        cursor.execute(sql_command, (user1, other_user, movie_id))
         result = cursor.fetchall()
-        return result
+
+        if not result:
+            return None
+
+        movies = {
+            row[0]: {
+                "title": row[1],
+                "release_date": row[2],
+                "picture": row[3],
+                "genres": row[4]
+            }
+            for row in result
+        }
+        return movies

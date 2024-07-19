@@ -422,23 +422,27 @@ class MovieTinder(QMainWindow):
 
     def display_next_movie(self):
         """Display the next movie (placeholder)."""
-        self.movie_index = self.movie_index + 1
-        if self.movies is None or len(self.movies) < self.movie_index:
+        self.movie_index += 1
+        if self.movies is None or len(self.movies) <= self.movie_index:
             movies = db.get_movies_for_user(self.id)
             self.movies = list(movies.values())
             self.movie_ids = list(movies.keys())
             self.movie_index = 0
 
         self.movie_title_label.setText(self.movies[self.movie_index]["title"])
-        # load the image to qpixmap from blob
+
+        # Load the image to QPixmap from blob
         pixmap = QPixmap()
         pixmap.loadFromData(QByteArray(self.movies[self.movie_index]["picture"]))
         self.movie_cover_label.setPixmap(pixmap)
-        # format date to german date format
-        release_date = (datetime.strptime(str(self.movies[self.movie_index]["release_date"]), "%Y-%m-%d")
-                        .strftime("%d.%m.%Y"))
-        self.movie_release_date_label.setText(release_date)
-        self.movie_genres_label.setText(self.movies[self.movie_index]["genres"])
+
+        # Format date to German date format
+        release_date = datetime.strptime(
+            str(self.movies[self.movie_index]["release_date"]), "%Y-%m-%d"
+        ).strftime("%d.%m.%Y")
+        self.movie_release_date_label.setText(f"Release Date: {release_date}")
+
+        self.movie_genres_label.setText(f"Genres: {self.movies[self.movie_index]['genres']}")
 
     def view_match(self):
         """Handle viewing a match."""

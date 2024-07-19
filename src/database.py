@@ -377,6 +377,20 @@ class Database:
         }
         return movies
 
-    def add_user_interest(self, userid, movieid, isliked):
-        return self.__save('movie_user_interests', ['user', 'movie', 'liked'], [userid, movieid, isliked])
-    
+    def add_user_interest(self, user_id, movie_id, is_liked):
+        """
+        Add a user's interest in a movie to the database.
+
+        Args:
+            user_id (int): The ID of the user.
+            movie_id (int): The ID of the movie.
+            is_liked (bool): Whether the user liked the movie (True) or not (False).
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
+        return self.__save(
+            'movie_user_interests',
+            ['user', 'movie', 'liked'],
+            [user_id, movie_id, is_liked]
+        )

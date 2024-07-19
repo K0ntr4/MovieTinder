@@ -1,10 +1,11 @@
 import sys
+from datetime import datetime
 from src.base import hash_password
 from src.database import Database
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QMessageBox, \
     QStackedLayout, QListWidget, QHBoxLayout, QLabel
 from PySide6.QtGui import QPixmap
-from PySide6.QtCore import QFile, QTextStream, Qt
+from PySide6.QtCore import QFile, QByteArray, QTextStream, Qt
 
 
 class MovieTinder(QMainWindow):
@@ -428,10 +429,16 @@ class MovieTinder(QMainWindow):
             self.movie_ids = list(movies.keys())
             self.movie_index = 0
 
-        self.movie_title_label.setText(self.movies[0]["title"])
-        self.movie_cover_label.setPixmap(QPixmap(self.movies[0]["picture"]))
-        self.movie_release_date_label.setText(self.movies[0]["release_date"])
-        self.movie_genres_label.setText(self.movies[0]["genres"])
+        self.movie_title_label.setText(self.movies[self.movie_index]["title"])
+        # load the image to qpixmap from blob
+        pixmap = QPixmap()
+        pixmap.loadFromData(QByteArray(self.movies[self.movie_index]["picture"]))
+        self.movie_cover_label.setPixmap(pixmap)
+        # format date to german date format
+        release_date = (datetime.strptime(str(self.movies[self.movie_index]["release_date"]), "%Y-%m-%d")
+                        .strftime("%d.%m.%Y"))
+        self.movie_release_date_label.setText(release_date)
+        self.movie_genres_label.setText(self.movies[self.movie_index]["genres"])
 
     def view_match(self):
         """Handle viewing a match."""

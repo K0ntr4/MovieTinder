@@ -340,7 +340,7 @@ class Database:
             LEFT JOIN 
                 movie_genres g ON mxg.genre = g.id
             WHERE 
-                m.id > (
+                m.id > COALESCE((
                     SELECT 
                         movie 
                     FROM 
@@ -350,7 +350,7 @@ class Database:
                     ORDER BY 
                         movie DESC
                     LIMIT 1
-                ) 
+                ), 0) 
             GROUP BY 
                 m.id
             LIMIT 20;
@@ -378,5 +378,5 @@ class Database:
         return movies
 
     def add_user_interest(self, userid, movieid, isliked):
-        return self.__save('user_interest', ['user', 'movie', 'liked'], [userid, movieid, isliked])
+        return self.__save('movie_user_interests', ['user', 'movie', 'liked'], [userid, movieid, isliked])
     

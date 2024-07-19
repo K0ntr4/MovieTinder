@@ -2,14 +2,25 @@ import sys
 from src.base import hash_password
 from src.database import Database
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QMessageBox, \
-    QStackedLayout, QListWidget, QHBoxLayout
-from PySide6.QtCore import QFile, QTextStream
+    QStackedLayout, QListWidget, QHBoxLayout, QLabel
+from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QFile, QTextStream, Qt
 
 
 class MovieTinder(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.connections = None
+        self.match_movie_genres_label = None
+        self.match_movie_release_date_label = None
+        self.match_movie_cover_label = None
+        self.match_movie_title_label = None
+        self.matches_list = None
+        self.movie_genres_label = None
+        self.movie_release_date_label = None
+        self.movie_cover_label = None
+        self.movie_title_label = None
         self.requests = None
         self.id = None
         self.requests_list = None
@@ -22,6 +33,9 @@ class MovieTinder(QMainWindow):
         self.main_page_widget = None
         self.signup_widget = None
         self.login_widget = None
+        self.swiping_widget = None
+        self.matches_widget = None
+        self.match_details_widget = None
         self.main_layout = None
         self.setWindowTitle("MovieTinder")
 
@@ -32,18 +46,24 @@ class MovieTinder(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        # Main stacked layout to switch between login, sign up, and main page views
+        # Main stacked layout to switch between login, sign up, main page, swiping page, and matches page views
         self.main_layout = QStackedLayout()
 
-        # Create login, sign up, and main page widgets
+        # Create login, sign up, main page, swiping page, and matches page widgets
         self.login_widget = self.create_login_widget()
         self.signup_widget = self.create_signup_widget()
         self.main_page_widget = self.create_main_page_widget()
+        self.swiping_widget = self.create_swiping_widget()
+        self.matches_widget = self.create_matches_widget()
+        self.match_details_widget = self.create_match_details_widget()
 
         # Add widgets to the main stacked layout
         self.main_layout.addWidget(self.login_widget)
         self.main_layout.addWidget(self.signup_widget)
         self.main_layout.addWidget(self.main_page_widget)
+        self.main_layout.addWidget(self.swiping_widget)
+        self.main_layout.addWidget(self.matches_widget)
+        self.main_layout.addWidget(self.match_details_widget)
 
         # Set initial widget to login view
         self.main_layout.setCurrentWidget(self.login_widget)
@@ -123,6 +143,8 @@ class MovieTinder(QMainWindow):
         self.requests_list = QListWidget()
         accept_button = QPushButton("Accept")
         refresh_button = QPushButton("Refresh Requests")
+        switch_to_swiping_button = QPushButton("Start Swiping")
+        switch_to_matches_button = QPushButton("View Matches")
 
         # Add a horizontal layout for the email input and add button
         email_input_layout = QHBoxLayout()
@@ -137,6 +159,8 @@ class MovieTinder(QMainWindow):
         layout.addLayout(email_input_layout)
         layout.addLayout(requests_list_layout)
         layout.addWidget(refresh_button)
+        layout.addWidget(switch_to_swiping_button)
+        layout.addWidget(switch_to_matches_button)
 
         main_page_widget.setLayout(layout)
 
@@ -144,8 +168,119 @@ class MovieTinder(QMainWindow):
         add_button.clicked.connect(self.add_user_by_email)
         accept_button.clicked.connect(self.accept_request)
         refresh_button.clicked.connect(self.refresh_requests)
+        switch_to_swiping_button.clicked.connect(self.switch_to_swiping)
+        switch_to_matches_button.clicked.connect(self.switch_to_matches)
 
         return main_page_widget
+
+    def create_swiping_widget(self):
+        """Create the swiping page widget."""
+        swiping_widget = QWidget()
+        layout = QVBoxLayout()
+
+        self.movie_title_label = QLabel("Movie Title Placeholder")
+        self.movie_title_label.setAlignment(Qt.AlignCenter)
+
+        self.movie_cover_label = QLabel()
+        self.movie_cover_label.setPixmap(QPixmap("../resources/placeholder_image.png"))
+        self.movie_cover_label.setAlignment(Qt.AlignCenter)
+
+        self.movie_release_date_label = QLabel("Release Date: Placeholder")
+        self.movie_release_date_label.setAlignment(Qt.AlignCenter)
+
+        self.movie_genres_label = QLabel("Genres: Placeholder")
+        self.movie_genres_label.setAlignment(Qt.AlignCenter)
+
+        like_button = QPushButton()
+        like_button.setText("✔️")
+        dislike_button = QPushButton()
+        dislike_button.setText("❌")
+        back_to_main_button = QPushButton("Back to Main Page")
+
+        layout.addWidget(self.movie_title_label)
+        layout.addWidget(self.movie_cover_label)
+        layout.addWidget(self.movie_release_date_label)
+        layout.addWidget(self.movie_genres_label)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(dislike_button, alignment=Qt.AlignCenter)
+        button_layout.addWidget(like_button, alignment=Qt.AlignCenter)
+
+        layout.addLayout(button_layout)
+        layout.addWidget(back_to_main_button, alignment=Qt.AlignCenter)
+
+        swiping_widget.setLayout(layout)
+
+        # Connect button signals to slots
+        like_button.clicked.connect(self.like_movie)
+        dislike_button.clicked.connect(self.dislike_movie)
+        back_to_main_button.clicked.connect(self.switch_to_main_page)
+
+        return swiping_widget
+
+    def create_matches_widget(self):
+        """Create the matches page widget."""
+        matches_widget = QWidget()
+        layout = QVBoxLayout()
+
+        self.matches_list = QListWidget()
+        view_match_button = QPushButton("View Match")
+        back_to_main_button = QPushButton("Back to Main Page")
+
+        layout.addWidget(self.matches_list)
+        layout.addWidget(view_match_button)
+        layout.addWidget(back_to_main_button)
+
+        matches_widget.setLayout(layout)
+
+        # Connect button signals to slots
+        view_match_button.clicked.connect(self.view_match)
+        back_to_main_button.clicked.connect(self.switch_to_main_page)
+
+        return matches_widget
+
+    def create_match_details_widget(self):
+        """Create the match details widget."""
+        match_details_widget = QWidget()
+        layout = QVBoxLayout()
+
+        self.match_movie_title_label = QLabel("Movie Title Placeholder")
+        self.match_movie_title_label.setAlignment(Qt.AlignCenter)
+
+        self.match_movie_cover_label = QLabel()
+        self.match_movie_cover_label.setPixmap(QPixmap("../resources/placeholder_image.png"))
+        self.match_movie_cover_label.setAlignment(Qt.AlignCenter)
+
+        self.match_movie_release_date_label = QLabel("Release Date: Placeholder")
+        self.match_movie_release_date_label.setAlignment(Qt.AlignCenter)
+
+        self.match_movie_genres_label = QLabel("Genres: Placeholder")
+        self.match_movie_genres_label.setAlignment(Qt.AlignCenter)
+
+        previous_button = QPushButton("Previous")
+        next_button = QPushButton("Next")
+        back_to_matches_button = QPushButton("Back to Matches Page")
+
+        layout.addWidget(self.match_movie_title_label)
+        layout.addWidget(self.match_movie_cover_label)
+        layout.addWidget(self.match_movie_release_date_label)
+        layout.addWidget(self.match_movie_genres_label)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(previous_button, alignment=Qt.AlignCenter)
+        button_layout.addWidget(next_button, alignment=Qt.AlignCenter)
+
+        layout.addLayout(button_layout)
+        layout.addWidget(back_to_matches_button, alignment=Qt.AlignCenter)
+
+        match_details_widget.setLayout(layout)
+
+        # Connect button signals to slots
+        previous_button.clicked.connect(self.previous_match)
+        next_button.clicked.connect(self.next_match)
+        back_to_matches_button.clicked.connect(self.switch_to_matches)
+
+        return match_details_widget
 
     def apply_stylesheet(self):
         """Apply external CSS stylesheet to the application."""
@@ -210,6 +345,25 @@ class MovieTinder(QMainWindow):
         self.clear_login_fields()
         self.main_layout.setCurrentWidget(self.login_widget)
 
+    def switch_to_main_page(self):
+        """Switch to the main page view."""
+        self.main_layout.setCurrentWidget(self.main_page_widget)
+
+    def switch_to_swiping(self):
+        """Switch to the swiping page view."""
+        self.main_layout.setCurrentWidget(self.swiping_widget)
+
+    def switch_to_matches(self):
+        """Switch to the matches page view."""
+        self.main_layout.setCurrentWidget(self.matches_widget)
+        connections = db.get_users_connections(self.id)
+        self.connections = {value: key for (key, value) in connections.items()}
+        self.matches_list.addItems(list(connections.values()))
+
+    def switch_to_match_details(self):
+        """Switch to the match details view."""
+        self.main_layout.setCurrentWidget(self.match_details_widget)
+
     def clear_login_fields(self):
         """Clear input fields in the login widget."""
         self.email_login.clear()
@@ -228,7 +382,7 @@ class MovieTinder(QMainWindow):
             QMessageBox.warning(self, "Request", "Email can't be empty")
             return
         if not db.create_connection_request(self.id, email):
-            QMessageBox.information(self, "Request", f"Failed to sent Request to: {email}")
+            QMessageBox.information(self, "Request", f"Failed to send Request to: {email}")
             return
         QMessageBox.information(self, "Request", f"Sent Request to: {email}")
         self.email_input.clear()
@@ -247,9 +401,47 @@ class MovieTinder(QMainWindow):
     def refresh_requests(self):
         """Refresh the requests list (clear and reload, if necessary)."""
         self.requests_list.clear()
-        requests = db.get_users_pending_requests(self.id)
+        requests = db.get_users_connections(self.id, True)
         self.requests = {value: key for (key, value) in requests.items()}
         self.requests_list.addItems(list(requests.values()))
+
+    def like_movie(self):
+        """Handle liking a movie."""
+        # Placeholder implementation
+        self.display_next_movie()
+
+    def dislike_movie(self):
+        """Handle disliking a movie."""
+        # Placeholder implementation
+        self.display_next_movie()
+
+    def display_next_movie(self):
+        """Display the next movie (placeholder)."""
+        self.movie_title_label.setText("Next Movie Title Placeholder")
+        self.movie_cover_label.setPixmap(QPixmap("../resources/next_placeholder_image.png"))
+        self.movie_release_date_label.setText("Release Date: Next Placeholder")
+        self.movie_genres_label.setText("Genres: Next Placeholder")
+
+    def view_match(self):
+        """Handle viewing a match."""
+        # Placeholder implementation
+        self.switch_to_match_details()
+
+    def previous_match(self):
+        """Handle showing the previous match."""
+        # Placeholder implementation
+        self.match_movie_title_label.setText("Previous Movie Title Placeholder")
+        self.match_movie_cover_label.setPixmap(QPixmap("../resources/previous_placeholder_image.png"))
+        self.match_movie_release_date_label.setText("Release Date: Previous Placeholder")
+        self.match_movie_genres_label.setText("Genres: Previous Placeholder")
+
+    def next_match(self):
+        """Handle showing the next match."""
+        # Placeholder implementation
+        self.match_movie_title_label.setText("Next Movie Title Placeholder")
+        self.match_movie_cover_label.setPixmap(QPixmap("../resources/next_placeholder_image.png"))
+        self.match_movie_release_date_label.setText("Release Date: Next Placeholder")
+        self.match_movie_genres_label.setText("Genres: Next Placeholder")
 
 
 if __name__ == "__main__":

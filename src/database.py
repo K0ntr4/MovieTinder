@@ -175,15 +175,16 @@ class Database:
         # Save the new connection request
         return self.__save('connections', ['user1', 'user2'], [userid1, result[0]])
 
-    def get_users_pending_requests(self, user_id):
+    def get_users_connections(self, user_id, pending=False):
         """
-        Retrieve all pending connection requests for a user.
+        Retrieve all connections for a user.
 
         Args:
             user_id (int): The ID of the user.
+            pending (bool): Whether to retrieve pending connections. Defaults to False.
 
         Returns:
-            dict: A dictionary of connection IDs and user emails for pending requests.
+            dict: A dictionary of connection IDs and user emails for the connections.
         """
         sql_command = """
             SELECT 
@@ -191,18 +192,18 @@ class Database:
                 users.email AS usermail 
             FROM connections 
             JOIN users ON connections.user1 = users.id 
-            WHERE connections.user2 = %s AND active = FALSE
+            WHERE connections.user2 = %s AND active = %s
         """
         cursor = self.connection.cursor()
-        cursor.execute(sql_command, (user_id,))
+        cursor.execute(sql_command, (user_id, not pending,))
         result = cursor.fetchall()
 
         if not result:
             return {}
 
         # Convert the result to a dictionary
-        pending_requests = {row[0]: row[1] for row in result}
-        return pending_requests
+        connections = {row[0]: row[1] for row in result}
+        return connections
 
     def accept_connection(self, connection_id):
         """

@@ -1,5 +1,8 @@
 import mysql.connector
 from src.base import get_db_config
+from src.api import ApiWrapper
+
+api = ApiWrapper()
 
 
 class Database:
@@ -212,3 +215,163 @@ class Database:
             bool: True if the connection was successfully accepted, False otherwise.
         """
         return self.__save('connections', ['active'], [True], connection_id)
+
+    def add_movie_genre_relation(self, movies, last_row_id):
+        """
+        Add the relationship between movies and genres in the movie_x_genres table.
+
+        Args:
+            movies (list): List of movies fetched from the API.
+            last_row_id (int): The ID of the last inserted movie in the movies table.
+
+        Returns:
+            bool: True if the relationships were successfully added, False otherwise.
+        """
+        api_genres = []
+        for movie in movies:
+            api_genres += movie["genre_ids"]
+
+        # Fetch genre IDs from the database
+        sql_command = f"""
+            SELECT api_id, id 
+            FROM movie_genres 
+            WHERE api_id IN ({', '.join(['%s'] * len(api_genres))})
+        """
+        cursor = self.connection.cursor()
+        cursor.execute(sql_command, api_genres)
+        result = cursor.fetchall()
+
+        if not result:
+            return False
+
+        # Convert result to a dictionary for easy lookup
+        result = dict(result)
+
+        # Prepare the values for the insertion into movie_x_genres
+        sql_command = """
+            INSERT IGNORE INTO movie_x_genres (movie, genre) VALUES (%s, %s)
+        """
+        values = []
+        for i, movie in enumerate(movies):
+            for genre in movie["genre_ids"]:
+                values.append((last_row_id - len(movies) + i + 1, result[genre]))
+
+        cursor.executemany(sql_command, values)
+        self.connection.commit()
+
+        return True
+
+    def fetch_movie_genres(self):
+        """
+        Fetch and store movie genres from the API into the movie_genres table.
+
+        Returns:
+            bool: True if genres were successfully fetched and stored, False otherwise.
+        """
+        genres = api.fetch_movie_genres()
+        if genres is None:
+            return False
+
+        sql_command = """
+            INSERT IGNORE INTO movie_genres (api_id, name) VALUES (%s, %s)
+        """
+        values = [(genre["id"], genre["name"]) for genre in genres]
+        cursor = self.connection.cursor()
+        cursor.executemany(sql_command, values)
+        self.connection.commit()
+
+        return True
+
+    def fetch_new_movies(self, page=1):
+        """
+        Fetch and store new movies from the API into the movies table,
+        and update their genre relations.
+
+        Args:
+            page (int, optional): The page number to fetch movies from. Defaults to 1.
+
+        Returns:
+            bool: True if movies were successfully fetched and stored, False otherwise.
+        """
+        movies = api.fetch_movies(page)
+        if movies is None:
+            return False
+
+        sql_command = """
+            INSERT IGNORE INTO movies (api_id, title, release_date, picture, page) VALUES (%s, %s, %s, %s, %s)
+        """
+        values = [
+            (movie["id"], movie["title"], movie["release_date"], api.fetch_image(movie["poster_path"]), page)
+            for movie in movies
+        ]
+        cursor = self.connection.cursor()
+        cursor.executemany(sql_command, values)
+        last_row_id = cursor.lastrowid
+        self.connection.commit()
+
+        self.fetch_movie_genres()
+        self.add_movie_genre_relation(movies, last_row_id)
+
+        return True
+
+    def get_movies_for_user(self, user_id):
+        """
+        Retrieve movies for a user that the user has not interacted with yet.
+
+        Args:
+            user_id (int): The ID of the user.
+
+        Returns:
+            dict: A dictionary of movies with their details.
+        """
+        sql_command = """
+            SELECT
+                m.id,
+                m.title, 
+                m.release_date, 
+                m.picture,
+                GROUP_CONCAT(g.name SEPARATOR ', ') AS genres,
+                m.page
+            FROM 
+                movies m
+            LEFT JOIN 
+                movie_x_genres mxg ON m.id = mxg.movie
+            LEFT JOIN 
+                movie_genres g ON mxg.genre = g.id
+            WHERE 
+                m.id > (
+                    SELECT 
+                        movie 
+                    FROM 
+                        movie_user_interests 
+                    WHERE 
+                        user = %s
+                    ORDER BY 
+                        movie DESC
+                    LIMIT 1
+                ) 
+            GROUP BY 
+                m.id
+            LIMIT 20;
+        """
+        cursor = self.connection.cursor()
+        cursor.execute(sql_command, (user_id,))
+        result = cursor.fetchall()
+
+        if not result:
+            return {}
+
+        # If less than 5 movies are fetched, fetch more movies from the previous page
+        if len(result) < 5:
+            self.fetch_new_movies(result[0][5] - 1)
+
+        movies = {
+            row[0]: {
+                "title": row[1],
+                "release_date": row[2],
+                "picture": row[3],
+                "genres": row[4]
+            }
+            for row in result
+        }
+        return movies
